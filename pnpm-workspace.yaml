@@ -5,17 +5,12 @@ packages:
   - "."
   - "apps/docs"
   - "cloudflare/control-plane"
-# Packaging fetches optional binaries for both desktop CPU targets. This lived
-# in package.json's "pnpm" field, which pnpm 10.33 ignores — it printed a
-# warning on every command and, more to the point, silently was not applied.
-supportedArchitectures:
-  cpu:
-    - arm64
-    - x64
 allowBuilds:
+  core-js: true
   electron: true # postinstall downloads the Electron dist
-  esbuild: true # postinstall validates the platform binary
   electron-winstaller: false # unused — Windows builds ship NSIS
+  esbuild: true # postinstall validates the platform binary
+  workerd: true
 onlyBuiltDependencies:
   - electron
   - esbuild
@@ -24,3 +19,10 @@ onlyBuiltDependencies:
 overrides:
   dompurify: 3.4.17
   fast-uri: 3.1.9
+# Packaging fetches optional binaries for both desktop CPU targets. This lived
+# in package.json's "pnpm" field, which pnpm 10.33 ignores — it printed a
+# warning on every command and, more to the point, silently was not applied.
+supportedArchitectures:
+  cpu:
+    - arm64
+    - x64

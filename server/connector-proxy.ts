@@ -245,8 +245,9 @@ function rememberSchemas(frame: Json): Json {
   const tools = (frame.result as { tools?: unknown } | undefined)?.tools;
   if (Array.isArray(tools)) {
     for (const tool of tools) {
-      const { name, inputSchema } = (tool ?? {}) as { name?: unknown; inputSchema?: unknown };
-      if (typeof name === "string" && inputSchema !== undefined) SCHEMAS.set(name, inputSchema);
+      const entry = (tool ?? {}) as { name?: unknown; description?: unknown; inputSchema?: unknown };
+      if (typeof entry.name === "string" && entry.inputSchema !== undefined) SCHEMAS.set(entry.name, entry.inputSchema);
+      if (typeof entry.description === "string" && entry.description.length > 220) entry.description = `${entry.description.trim().slice(0, 220)}…`;
     }
   }
   return frame;

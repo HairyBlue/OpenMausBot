@@ -42,3 +42,6 @@ deploy/podman/.env
 deploy/podman/.env.*
 !deploy/podman/.env.example
 /.env
+
+wsl-picto.tail6711a4.ts.net.crt 
+wsl-picto.tail6711a4.ts.net.key

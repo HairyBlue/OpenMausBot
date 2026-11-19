@@ -40,6 +40,7 @@ export function agentsToolBridgeEnabled(cfg: BridgeConfig, env: NodeJS.ProcessEn
 /** A model on this machine or network reads the whole list on every turn, out of a small window and at laptop speed:
  * about 15,000 tokens before the person has said anything. OMB_AGENTS_TOOL_BRIDGE=0 still wins. */
 function runsLocalModel(bot: { modelSelection?: { model?: unknown } } | null | undefined, engine: BridgeEngine | null | undefined): boolean {
+  if (engine?.driverKind === "antigravityAgent" || engine?.driverKind === "customAcp") return true;
   const model = bot?.modelSelection?.model;
   if (typeof model === "string" && decodeInjectId(model)) return true;
   const url = (engine?.config as { url?: unknown } | undefined)?.url;
@@ -82,7 +83,7 @@ export interface EngineHost {
   managedPolicyFiles: readonly string[];
 }
 
-const CHAT_RUNTIME_DRIVERS: ReadonlySet<string> = new Set(["cerebras", "greenference", "modelgo", "grok", "groq", "meta", "minimax", "mistral", "openai-compat"]);
+const CHAT_RUNTIME_DRIVERS: ReadonlySet<string> = new Set(["antigravityAgent", "customAcp", "cerebras", "greenference", "modelgo", "grok", "groq", "meta", "minimax", "mistral", "openai-compat"]);
 
 /** Whether text may name the agents server: it contains `mcp__agents` (a server merely starting so counts
  * too) or `mcp__` then a wildcard. Security: plain substring tests; no pattern is ever built from config text. */
