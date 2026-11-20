@@ -12,7 +12,8 @@ vi.mock("@/lib/interface-mode", async (original) => ({
 vi.mock("./DesktopCapabilities", () => ({ useDesktopCapabilities: () => ({}) }));
 
 import { BotListItem, botRowProps } from "./Sidebar";
-import { SidebarBotTile, SidebarTileGrid } from "./SidebarTiles";
+import { pageFaviconUrl, SidebarBotTile, SidebarPageTile, SidebarTileGrid } from "./SidebarTiles";
+import type { WebPanel } from "@/lib/web-panels";
 
 const bot = (extra: Partial<Bot> = {}): Bot => ({
   id: "mausbot", threadId: "t", name: "MausBot", title: "", description: "", notifications: true, color: "chrome",
@@ -42,11 +43,11 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("the sidebar tiles", () => {
-  it.each([true, false])("draws the main tile and a pinned tile the same: 78 by 92, radius 8, a 56px avatar over a one-line 13px medium name (main %s)", (primary) => {
+  it.each([true, false])("draws the main tile and a pinned tile the same: 95 by 92, radius 12, a 60px avatar over a one-line 12px regular name (main %s)", (primary) => {
     const html = renderToStaticMarkup(createElement(SidebarBotTile, { ...props(bot({ chiefOfStaff: primary })), primary }));
-    expect(html).toMatch(new RegExp(`data-sidebar-tile="${primary ? "primary" : "pinned"}"[^>]*class="[^"]*\\bh-\\[92px\\] w-\\[78px\\][^"]*\\brounded-\\[8px\\]`));
-    expect(html).toContain('width="56px" height="56px"');
-    expect(html).toMatch(/truncate text-center text-\[13px\] font-medium leading-4 text-ink"[^>]*>MausBot</);
+    expect(html).toMatch(new RegExp(`data-sidebar-tile="${primary ? "primary" : "pinned"}"[^>]*class="[^"]*\\bh-\\[92px\\] w-\\[95px\\][^"]*\\brounded-xl\\b`));
+    expect(html).toContain('width="60px" height="60px"');
+    expect(html).toMatch(/truncate text-center text-\[12px\] leading-4 text-ink"[^>]*>MausBot</);
     expect(html).not.toContain("data-provider-mark");
   });
 
@@ -125,9 +126,9 @@ describe("the tile grid", () => {
     const html = grid(main, pins(count));
     const drag = count > 1 ? ":drag" : "";
     expect(tiles(html)).toEqual(["primary:mausbot", ...pins(count).map((pin) => `pinned:${pin.id}${drag}`)]);
-    expect(html).toMatch(/^<div data-sidebar-tiles="" class="flex max-h-\[40vh\] flex-wrap justify-center gap-1 overflow-y-auto /);
-    expect(html.match(/\bh-\[92px\] w-\[78px\]/g)).toHaveLength(count + 1);
-    expect(html.match(/width="56px" height="56px"/g)).toHaveLength(count + 1);
+    expect(html).toMatch(/^<div data-sidebar-tiles="" class="flex max-h-\[40vh\] flex-wrap justify-center gap-x-1 gap-y-3 overflow-y-auto /);
+    expect(html.match(/\bh-\[92px\] w-\[95px\]/g)).toHaveLength(count + 1);
+    expect(html.match(/width="60px" height="60px"/g)).toHaveLength(count + 1);
     expect(html.match(/data-testid="chief-badge"/g)).toHaveLength(1);
   });
 
@@ -142,14 +143,58 @@ describe("the tile grid", () => {
   });
 
   // A grid taller than its 40vh cap scrolls, and its 8px scrollbar takes from the room.
-  it.each([[280, 3], [360, 4]])("fits %ipx of sidebar to %i tiles across, with or without a scrollbar", (width, columns) => {
+  it.each([[280, 2], [360, 3]])("fits %ipx of sidebar to %i tiles across, with or without a scrollbar", (width, columns) => {
     const html = grid(main, pins(5));
     const tile = Number(/data-sidebar-tile="primary"[^>]*class="[^"]*\bw-\[(\d+)px\]/.exec(html)![1]);
     const gridClass = /data-sidebar-tiles="" class="([^"]*)"/.exec(html)![1]!;
-    const gap = 4 * Number(/\bgap-(\d+)\b/.exec(gridClass)![1]);
+    const gap = 4 * Number(/\bgap-x-(\d+)\b/.exec(gridClass)![1]);
     const gutters = 2 * 4 * Number(/\bpx-(\d+)\b/.exec(gridClass)![1]);
     const across = (room: number) => Math.floor((room + gap) / (tile + gap));
     expect(across(width - gutters)).toBe(columns);
     expect(across(width - gutters - 8)).toBe(columns);
+  });
+});
+
+describe("a pinned page's tile", () => {
+  const site: WebPanel = { id: "board", name: "Fleet board", url: "http://127.0.0.1:7841/dash?tab=1" };
+  const chatPage: WebPanel = { id: "report", name: "Weekly report", page: { botId: "mausbot", threadId: "t", messageId: "m" } };
+  const draw = (panel: WebPanel, open = false) => renderToStaticMarkup(createElement(SidebarPageTile, { panel, open, dispatch }));
+
+  it("is a bot tile's size, with its mark on a 60px card plate where the avatar is, over the same 12px caption", () => {
+    const html = draw(site);
+    expect(html).toMatch(/<button type="button" data-sidebar-tile="page" data-sidebar-page="board" title="Fleet board" class="[^"]*\bh-\[92px\] w-\[95px\][^"]*\brounded-xl\b/);
+    expect(html).toMatch(/<span aria-hidden="true" class="flex size-\[60px\] shrink-0 items-center justify-center rounded-xl bg-card text-ink-secondary">/);
+    expect(html).toMatch(/class="mt-1\.5 w-full min-w-0 truncate text-center text-\[12px\] leading-4 text-ink">Fleet board</);
+    expect(html).not.toContain("aria-current");
+  });
+
+  it("shows a site's own favicon at 24px, asked of that site with no referrer, and a bot's page the page icon", () => {
+    expect(pageFaviconUrl(site)).toBe("http://127.0.0.1:7841/favicon.ico");
+    expect(draw(site)).toMatch(/<img src="http:\/\/127\.0\.0\.1:7841\/favicon\.ico" alt="" width="24" height="24" referrerPolicy="no-referrer" class="size-6"\/>/);
+    expect(pageFaviconUrl(chatPage)).toBeNull();
+    const page = draw(chatPage);
+    expect(page).not.toContain("<img");
+    expect(page).toMatch(/<svg[^>]*width="24" height="24"[^>]*class="lucide lucide-app-window/);
+  });
+
+  it("opens its page on a click and is marked current while that page is on screen", () => {
+    expect(draw(site, true)).toContain('aria-current="page"');
+    expect(draw(site, true)).toContain("[--tile:var(--color-raised)]");
+    let tree: ReactNode;
+    function Capture() { tree = SidebarPageTile({ panel: site, open: false, dispatch }); return tree; }
+    renderToStaticMarkup(createElement(Capture));
+    (find(tree, "data-sidebar-page")!.props.onClick as () => void)();
+    expect(dispatch).toHaveBeenCalledWith({ type: "showWebPanel", id: "board" });
+  });
+
+  it("follows the bots in the grid, and fills a grid of pages alone", () => {
+    const main = bot({ chiefOfStaff: true });
+    const row = (candidate: Bot) => botRowProps({ ...initialState, bots: [main], selectedId: "", activeView: "chat" }, dispatch, candidate, { density: "comfortable", query: "", onMenu });
+    const order = (html: string) => [...html.matchAll(/data-sidebar-tile="([^"]+)"/g)].map(([, kind]) => kind);
+    const html = renderToStaticMarkup(createElement(SidebarTileGrid, { primary: main, pinned: [], row, pages: [site, chatPage], openPage: "report", dispatch }));
+    expect(order(html)).toEqual(["primary", "page", "page"]);
+    expect(html.indexOf('data-sidebar-page="board"')).toBeLessThan(html.indexOf('data-sidebar-page="report"'));
+    expect(html).toMatch(/data-sidebar-page="report"[^>]*aria-current="page"/);
+    expect(order(renderToStaticMarkup(createElement(SidebarTileGrid, { primary: null, pinned: [], row, pages: [site], dispatch })))).toEqual(["page"]);
   });
 });
